@@ -63,24 +63,12 @@ def wczytaj_dane():
 
 
 # --- Modele -----------------------------------------------------------------
-def dopasuj_model(df12, y, kolumny, z_covid=True):
-    """Model OLS na standaryzowanych predyktorach (COVID pozostaje 0/1)."""
-    X = pd.DataFrame(
+def standaryzuj(df12, kolumny):
+    """Standaryzacja predyktorow (z-score) -> wspolczynniki sa porownywalne."""
+    return pd.DataFrame(
         StandardScaler().fit_transform(df12[kolumny]),
         columns=kolumny, index=df12.index,
     )
-    if z_covid:
-        X["COVID_dummy"] = df12["COVID_dummy"].values
-    return sm.OLS(y, sm.add_constant(X)).fit()
-
-
-def zbuduj_modele(df12, y):
-    return {
-        "M1: Amortyzacja + COVID": dopasuj_model(df12, y, ["Amortyzacja_graczy_tys_eur"]),
-        "M2: Amortyzacja + Place + COVID": dopasuj_model(df12, y, ["Amortyzacja_graczy_tys_eur", "Place_tys_eur"]),
-        "M3: Amortyzacja": dopasuj_model(df12, y, ["Amortyzacja_graczy_tys_eur"], z_covid=False),
-        "M4: Bilans + Place + COVID": dopasuj_model(df12, y, ["Bilans_TransferowyMln", "Place_tys_eur"]),
-    }
 
 
 # --- Tabele -----------------------------------------------------------------
@@ -266,8 +254,34 @@ def main():
     df = wczytaj_dane()
     df12 = df.iloc[:12].copy()  # probka regresyjna: sezony z dostepnym dlugiem
     y = df12["Dlug_dlugoterminowy_mln_eur"]
-    modele = zbuduj_modele(df12, y)
-    model_glowny = modele["M4: Bilans + Place + COVID"]
+
+    # Modele OLS budowane jawnie - dla kazdego widac jego specyfikacje.
+    # Model M1: amortyzacja transferow + COVID
+    X1 = standaryzuj(df12, ["Amortyzacja_graczy_tys_eur"])
+    X1["COVID_dummy"] = df12["COVID_dummy"].values
+    model_m1 = sm.OLS(y, sm.add_constant(X1)).fit()
+
+    # Model M2: amortyzacja + place + COVID
+    X2 = standaryzuj(df12, ["Amortyzacja_graczy_tys_eur", "Place_tys_eur"])
+    X2["COVID_dummy"] = df12["COVID_dummy"].values
+    model_m2 = sm.OLS(y, sm.add_constant(X2)).fit()
+
+    # Model M3: sama amortyzacja (bez COVID)
+    X3 = standaryzuj(df12, ["Amortyzacja_graczy_tys_eur"])
+    model_m3 = sm.OLS(y, sm.add_constant(X3)).fit()
+
+    # Model M4 (glowny): saldo transferowe + place + COVID
+    X4 = standaryzuj(df12, ["Bilans_TransferowyMln", "Place_tys_eur"])
+    X4["COVID_dummy"] = df12["COVID_dummy"].values
+    model_m4 = sm.OLS(y, sm.add_constant(X4)).fit()
+
+    modele = {
+        "M1: Amortyzacja + COVID": model_m1,
+        "M2: Amortyzacja + Place + COVID": model_m2,
+        "M3: Amortyzacja": model_m3,
+        "M4: Bilans + Place + COVID": model_m4,
+    }
+    model_glowny = model_m4
 
     porownanie = tabela_porownawcza(modele)
     wspolczynniki = {nazwa: tabela_wspolczynnikow(m) for nazwa, m in modele.items()}
