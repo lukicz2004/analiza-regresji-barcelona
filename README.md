@@ -1,60 +1,63 @@
-# Analiza regresji finansów FC Barcelona
+**English** · [Polski](README.pl.md)
 
-Analiza ekonometryczna zadłużenia FC Barcelona w latach 2010/11–2021/22,
-przygotowana w ramach pracy licencjackiej. Celem jest zbadanie, które czynniki
-finansowe najlepiej tłumaczą wzrost długu długoterminowego klubu.
+# FC Barcelona Financial Regression Analysis
 
-## Problem badawczy
+An econometric analysis of FC Barcelona's debt over the 2010/11–2021/22 period,
+originally prepared as part of a bachelor's thesis. The goal is to identify which
+financial factors best explain the growth of the club's long-term debt.
 
-Zmienna zależna: **dług długoterminowy** (mln EUR). Rozważane zmienne
-objaśniające: amortyzacja transferów graczy, płace, saldo transferowe oraz
-zmienna zero-jedynkowa oznaczająca okres pandemii COVID-19. Predyktory są
-standaryzowane (z-score), więc współczynniki są bezpośrednio porównywalne.
+## Research problem
 
-## Modele
+Dependent variable: **long-term debt** (EUR million). Candidate explanatory
+variables: player transfer amortization, wages, net transfer balance, and a
+dummy variable marking the COVID-19 period. Predictors are standardized
+(z-score), so the coefficients are directly comparable.
 
-Oszacowano cztery modele OLS (`statsmodels`) na próbie n = 12 sezonów:
+## Models
 
-| Model | Zmienne objaśniające | R² skorygowane |
-|-------|----------------------|:---:|
-| M1 | Amortyzacja + COVID | 0,732 |
-| M2 | Amortyzacja + Płace + COVID | 0,699 |
-| M3 | Amortyzacja | 0,696 |
-| **M4 (główny)** | **Saldo transferowe + Płace + COVID** | **0,813** |
+Four OLS models (`statsmodels`) were estimated on a sample of n = 12 seasons:
 
-Model główny **M4** wyjaśnia ok. 86% zmienności długu (R² = 0,864), a wszystkie
-trzy predyktory są istotne statystycznie. Diagnostyka obejmuje test
-Durbina-Watsona (autokorelacja), test Jarque-Bera (normalność reszt) oraz VIF
-(współliniowość).
+| Model | Explanatory variables | Adjusted R² |
+|-------|-----------------------|:---:|
+| M1 | Amortization + COVID | 0.732 |
+| M2 | Amortization + Wages + COVID | 0.699 |
+| M3 | Amortization | 0.696 |
+| **M4 (main)** | **Transfer balance + Wages + COVID** | **0.813** |
 
-## Struktura
+The main model **M4** explains about 86% of the variance in debt (R² = 0.864),
+and all three predictors are statistically significant. Diagnostics include the
+Durbin-Watson test (autocorrelation), the Jarque-Bera test (residual normality),
+and VIF (multicollinearity).
+
+## Structure
 
 ```
 .
-├── regresja_barcelona.py   # cała analiza: modele, tabele, wykresy, eksport
+├── regresja_barcelona.py   # full analysis: models, tables, charts, export
 ├── data/
 │   └── fcb_dane_regresja.csv
-├── outputs/                # generowane wyniki (Excel + wykresy PNG)
+├── outputs/                # generated results (Excel + PNG charts)
 ├── requirements.txt
-└── README.md
+├── README.md               # English
+└── README.pl.md            # Polish
 ```
 
-Dane pochodzą ze sprawozdań finansowych klubu i źródeł publicznych
-(m.in. raporty La Liga).
+Data come from the club's financial statements and public sources
+(including La Liga reports). Column names in the dataset are in Polish.
 
-## Uruchomienie
+## Running
 
 ```bash
 pip install -r requirements.txt
 python regresja_barcelona.py
 ```
 
-Skrypt wypisze tabele w konsoli oraz zapisze do `outputs/`:
+The script prints the tables to the console and writes to `outputs/`:
 
-- `wyniki_regresji.xlsx` — porównanie modeli, współczynniki, statystyki opisowe, VIF (każda tabela w osobnym arkuszu),
-- wykresy trendów: `wykres_dlug_w_czasie.png`, `wykres_amortyzacja_w_czasie.png`, `wykres_przychody_place.png`, `wykres_scatter_amortyzacja.png`,
-- wykresy diagnostyczne: `wykres_reszty_m4.png`, `wykres_qq_m4.png`, `wykres_korelacji.png`.
+- `wyniki_regresji.xlsx` — model comparison, coefficients, descriptive statistics, VIF (each table on its own sheet),
+- trend charts: `wykres_dlug_w_czasie.png` (debt over time), `wykres_amortyzacja_w_czasie.png` (amortization over time), `wykres_przychody_place.png` (revenue vs. wages), `wykres_scatter_amortyzacja.png` (amortization vs. debt),
+- diagnostic charts: `wykres_reszty_m4.png` (residuals), `wykres_qq_m4.png` (Q-Q), `wykres_korelacji.png` (correlation matrix).
 
-## Technologie
+## Technologies
 
 Python, pandas, NumPy, statsmodels, scikit-learn, matplotlib, seaborn, SciPy.
