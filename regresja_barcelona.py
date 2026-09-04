@@ -1,8 +1,8 @@
-# Analiza regresji finansow FC Barcelona (2010/11-2021/22)
-# Zmienna zalezna: dlug dlugoterminowy. Predyktory standaryzowane (z-score).
-# Skrypt mozna uruchamiac komorka po komorce (#%%) lub w calosci.
+# FC Barcelona financial regression analysis (2010/11-2021/22)
+# Dependent variable: long-term debt. Predictors standardized (z-score).
+# Run cell by cell (#%%) or all at once.
 
-#%% Importy
+#%% Imports
 import os
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 os.makedirs("outputs", exist_ok=True)
 
-# Barwy FC Barcelony
+# FC Barcelona colours
 GRANAT, KARMAZYN, ZLOTY = "#004D98", "#A50044", "#EDBB00"
 plt.rcParams.update({
     "font.family": "sans-serif",
@@ -28,7 +28,7 @@ plt.rcParams.update({
     "axes.titlecolor": GRANAT,
 })
 
-#%% Wczytanie danych i zmienne pochodne
+#%% Load data and derived variables
 df = pd.read_csv("data/fcb_dane_regresja.csv", sep=";")
 df["Bilans_TransferowyMln"] = (
     df["Bilans_TransferowyMln"].astype(str).str.strip()
@@ -38,14 +38,14 @@ df["Amortyzacja_mln"] = df["Amortyzacja_graczy_tys_eur"] / 1000
 df["Place_mln"] = df["Place_tys_eur"] / 1000
 df["Przychody_mln"] = df["Przychody_tys_eur"] / 1000
 
-# Probka regresyjna: 12 sezonow z dostepnym dlugiem dlugoterminowym
+# Regression sample: 12 seasons with available long-term debt
 df12 = df.iloc[:12].copy()
 y = df12["Dlug_dlugoterminowy_mln_eur"]
 
 print(df12[["Sezon", "Dlug_dlugoterminowy_mln_eur", "Amortyzacja_mln",
             "Place_mln", "Bilans_TransferowyMln", "COVID_dummy"]].to_string(index=False))
 
-#%% Statystyki opisowe (n=12)
+#%% Descriptive statistics (n=12)
 zmienne = {
     "Dlug_dlugoterminowy_mln_eur": "Dlug dlugoterminowy (mln EUR)",
     "Amortyzacja_mln": "Amortyzacja graczy (mln EUR)",
@@ -64,34 +64,34 @@ for kol, opis in zmienne.items():
 statystyki = pd.DataFrame(wiersze).set_index("Zmienna")
 print(statystyki.to_string())
 
-#%% Model M1: amortyzacja + COVID
+#%% Model M1: amortization + COVID
 X1 = pd.DataFrame(StandardScaler().fit_transform(df12[["Amortyzacja_graczy_tys_eur"]]),
                   columns=["Amortyzacja_graczy_tys_eur"], index=df12.index)
 X1["COVID_dummy"] = df12["COVID_dummy"].values
 model_m1 = sm.OLS(y, sm.add_constant(X1)).fit()
 print(model_m1.summary())
 
-#%% Model M2: amortyzacja + place + COVID
+#%% Model M2: amortization + wages + COVID
 X2 = pd.DataFrame(StandardScaler().fit_transform(df12[["Amortyzacja_graczy_tys_eur", "Place_tys_eur"]]),
                   columns=["Amortyzacja_graczy_tys_eur", "Place_tys_eur"], index=df12.index)
 X2["COVID_dummy"] = df12["COVID_dummy"].values
 model_m2 = sm.OLS(y, sm.add_constant(X2)).fit()
 print(model_m2.summary())
 
-#%% Model M3: sama amortyzacja (bez COVID)
+#%% Model M3: amortization only (no COVID)
 X3 = pd.DataFrame(StandardScaler().fit_transform(df12[["Amortyzacja_graczy_tys_eur"]]),
                   columns=["Amortyzacja_graczy_tys_eur"], index=df12.index)
 model_m3 = sm.OLS(y, sm.add_constant(X3)).fit()
 print(model_m3.summary())
 
-#%% Model M4 (glowny): saldo transferowe + place + COVID
+#%% Model M4 (main): transfer balance + wages + COVID
 X4 = pd.DataFrame(StandardScaler().fit_transform(df12[["Bilans_TransferowyMln", "Place_tys_eur"]]),
                   columns=["Bilans_TransferowyMln", "Place_tys_eur"], index=df12.index)
 X4["COVID_dummy"] = df12["COVID_dummy"].values
 model_m4 = sm.OLS(y, sm.add_constant(X4)).fit()
 print(model_m4.summary())
 
-#%% Tabela porownawcza modeli
+#%% Model comparison table
 modele = [
     ("M1: Amortyzacja + COVID", model_m1),
     ("M2: Amortyzacja + Place + COVID", model_m2),
@@ -109,7 +109,7 @@ for nazwa, m in modele:
 porownanie = pd.DataFrame(wiersze).set_index("Model")
 print(porownanie.to_string())
 
-#%% Wspolczynniki kazdego modelu (beta, p-value, istotnosc)
+#%% Coefficients of each model (beta, p-value, significance)
 def gwiazdki(p):
     if p < 0.01:
         return "***"
@@ -134,7 +134,7 @@ t4 = tabela_modelu(model_m4)
 print("\nModel M4 (glowny):")
 print(t4.to_string())
 
-#%% VIF dla modelu glownego (wspolliniowosc)
+#%% VIF for the main model (multicollinearity)
 X_vif = StandardScaler().fit_transform(df12[["Bilans_TransferowyMln", "Place_tys_eur"]])
 vif = pd.DataFrame({
     "Zmienna": ["Bilans_TransferowyMln", "Place_tys_eur"],
@@ -142,7 +142,7 @@ vif = pd.DataFrame({
 }).set_index("Zmienna")
 print(vif.to_string())
 
-#%% Zapis tabel do Excela (kazda na osobnym arkuszu)
+#%% Export tables to Excel (each on its own sheet)
 with pd.ExcelWriter("outputs/wyniki_regresji.xlsx", engine="openpyxl") as writer:
     statystyki.to_excel(writer, sheet_name="Statystyki opisowe")
     porownanie.to_excel(writer, sheet_name="Porownanie modeli")
@@ -153,7 +153,7 @@ with pd.ExcelWriter("outputs/wyniki_regresji.xlsx", engine="openpyxl") as writer
     t4.to_excel(writer, sheet_name="M4")
 print("Zapisano: outputs/wyniki_regresji.xlsx")
 
-#%% Wykres 1 - dlug dlugoterminowy w czasie
+#%% Chart 1 - long-term debt over time
 x = range(len(df12))
 plt.figure(figsize=(10, 5))
 plt.plot(x, df12["Dlug_dlugoterminowy_mln_eur"], marker="o", color=GRANAT, linewidth=2, label="Dlug dlugoterminowy")
@@ -168,7 +168,7 @@ plt.tight_layout()
 plt.savefig("outputs/wykres_dlug_w_czasie.png", dpi=150)
 plt.show()
 
-#%% Wykres 2 - amortyzacja graczy w czasie
+#%% Chart 2 - player amortization over time
 plt.figure(figsize=(10, 5))
 plt.plot(x, df12["Amortyzacja_mln"], marker="o", color=KARMAZYN, linewidth=2)
 plt.fill_between(list(x), df12["Amortyzacja_mln"], alpha=0.15, color=KARMAZYN)
@@ -180,7 +180,7 @@ plt.tight_layout()
 plt.savefig("outputs/wykres_amortyzacja_w_czasie.png", dpi=150)
 plt.show()
 
-#%% Wykres 3 - przychody vs place (2010-2025)
+#%% Chart 3 - revenue vs wages (2010-2025)
 x_all = range(len(df))
 plt.figure(figsize=(12, 5))
 plt.plot(x_all, df["Przychody_mln"], marker="o", color=GRANAT, linewidth=2, label="Przychody")
@@ -196,7 +196,7 @@ plt.tight_layout()
 plt.savefig("outputs/wykres_przychody_place.png", dpi=150)
 plt.show()
 
-#%% Wykres 4 - scatter: amortyzacja vs dlug + linia regresji
+#%% Chart 4 - scatter: amortization vs debt + regression line
 plt.figure(figsize=(8, 6))
 plt.scatter(df12["Amortyzacja_mln"], df12["Dlug_dlugoterminowy_mln_eur"], color=GRANAT, s=70, zorder=3)
 for _, row in df12.iterrows():
@@ -214,7 +214,7 @@ plt.tight_layout()
 plt.savefig("outputs/wykres_scatter_amortyzacja.png", dpi=150)
 plt.show()
 
-#%% Wykres 5 - reszty vs wartosci dopasowane (M4)
+#%% Chart 5 - residuals vs fitted values (M4)
 plt.figure(figsize=(8, 6))
 plt.axhline(0, color=GRANAT, linestyle="--", linewidth=2)
 plt.scatter(model_m4.fittedvalues, model_m4.resid, color=KARMAZYN, s=70, edgecolors="white", zorder=3)
@@ -227,7 +227,7 @@ plt.tight_layout()
 plt.savefig("outputs/wykres_reszty_m4.png", dpi=150)
 plt.show()
 
-#%% Wykres 6 - Q-Q reszt (M4)
+#%% Chart 6 - Q-Q of residuals (M4)
 plt.figure(figsize=(7, 5))
 (osq, osr), (slope, intercept, _) = probplot(model_m4.resid, dist="norm")
 plt.scatter(osq, osr, color=GRANAT, s=65, edgecolors=ZLOTY, linewidths=0.8, zorder=3)
@@ -239,7 +239,7 @@ plt.tight_layout()
 plt.savefig("outputs/wykres_qq_m4.png", dpi=150)
 plt.show()
 
-#%% Wykres 7 - macierz korelacji
+#%% Chart 7 - correlation matrix
 kol_corr = ["Amortyzacja_graczy_tys_eur", "Bilans_TransferowyMln",
             "Przychody_tys_eur", "Place_tys_eur", "COVID_dummy"]
 corr = df12[kol_corr].corr()
